@@ -1,0 +1,25 @@
+BEG DEFINE
+    # 单行航线4条
+    b1 自然选择
+    b2 蓝色空间
+    b3 终极规律
+    b4 企业
+    # 环形航线3条
+    b5 青铜时代
+    b6 量子
+    b7 万有引力
+END DEFINE
+
+BEG BODY
+    BEG LOOP
+        自然选择 前进 3
+        WAIT 1
+        蓝色空间 后退 1
+        WAIT 2
+        万有引力 前进 1
+        CAMERA MOVE ↑ 1
+        WAIT 1
+        CAMERA STOP
+        RESET ALL
+    END LOOP
+END BODY
