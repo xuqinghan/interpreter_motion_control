@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE Project SYSTEM "Project-5.1.dtd">
 <!-- eric project file for project imc -->
-<!-- Saved: 2020-09-21, 20:07:41 -->
+<!-- Saved: 2020-09-28, 09:54:21 -->
 <!-- Copyright (C) 2020 ,  -->
 <Project version="5.1">
   <Language>en_US</Language>
@@ -17,6 +17,7 @@
     <Source>__init__.py</Source>
     <Source>config.py</Source>
     <Source>interpreter.py</Source>
+    <Source>lexer.py</Source>
     <Source>main.py</Source>
     <Source>u_comm.py</Source>
   </Sources>
@@ -25,7 +26,6 @@
   </Forms>
   <Others>
     <Other>README.md</Other>
-    <Other>mock/plan1.txt</Other>
   </Others>
   <Vcs>
     <VcsType>Git</VcsType>
