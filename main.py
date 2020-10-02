@@ -14,6 +14,8 @@ from PyQt5.Qsci import QsciScintilla
 from Ui_main import Ui_MainWindow
 
 from interpreter import compile_time
+import u_comm
+import time
 
 class WorkerPlan(QThread):
     move_to_line = pyqtSignal(int)
@@ -22,7 +24,9 @@ class WorkerPlan(QThread):
         super(WorkerPlan, self).__init__(parent)
         #设置工作状态与初始num数值
         self.working = False
-        self.numline = 0
+        self.current_ptr = 0
+        #LABEL对应的指针
+        self.LABEL_prt_dict = {}
         self.CMDS_LINES = []
     
     def reset(self):
@@ -33,8 +37,10 @@ class WorkerPlan(QThread):
         '''打开新文本'''
         self.reset()
         lines_plan = [line.strip(' \n') for line in lines_plan ]
-        CMDS_LINES = compile_time(lines_plan)
-        self.CMDS_LINES = CMDS_LINES
+        #print(lines_plan)
+        self.CMDS_LINES = compile_time(lines_plan)
+        self.LABEL_prt_dict = {}
+        self.current_ptr = 0
 
 #    def __del__(self):
 #        #线程状态改变与线程终止
@@ -42,19 +48,72 @@ class WorkerPlan(QThread):
 #        self.wait()
 
     def step(self):
-        '''一次执行1行'''
+        '''一次执行1行 光标移到下一行'''
         # 发射信号
-        self.move_to_line.emit(self.numline)
-        self.numline  += 1
+        num_line1, CMD_LINE1 = self.CMDS_LINES[self.current_ptr]
+        #改成编辑器界面中从1开始的行号
+        num_line1 += 1
+        print(f'执行第{num_line1}行')
+        if self.current_ptr < len(self.CMDS_LINES):
+            #单步确认，继续执行
+            if isinstance(CMD_LINE1, list):
+                #如果是多行 只移动1次行号
+                for IL_line1 in CMD_LINE1:
+                    self.run_IL_line1(IL_line1)
+                self.current_ptr  += 1
+            elif isinstance(CMD_LINE1, tuple):
+                #单行 goto特殊处理 行号
+                print(CMD_LINE1)
+                num_line1_goto = self.run_IL_line1(CMD_LINE1)
+
+                if num_line1_goto is not None:
+                    #goto语句 光标跳转了，current_ptr在goto里改变了，不需要+1
+                    num_line1 = num_line1_goto
+                else:
+                    #没有goto 光标前进1
+                    self.current_ptr  += 1
+
+            self.move_to_line.emit(num_line1)
+
+        else:
+            print('执行完毕')
 
     def run(self):
         self.working = True
-        while self.working == True:
-            self.step()
-            # 线程休眠2秒
-            self.sleep(2)
-
+        while self.current_ptr < len(self.CMDS_LINES):
+            if self.working:
+                self.step()
+            else:
+                break
         print('执行完毕')
+
+    def run_IL_line1(self, IL_line1):
+        '''执行1行plan语句
+            goto 返回行号
+        '''
+        CMD, *para = IL_line1
+        num_line1_goto = None
+        if CMD == 'GOTO':
+            #参数是label 
+            self.current_ptr = self.LABEL_prt_dict[para[0]]
+            print(f'GOTO {self.CMDS_LINES[self.current_ptr]}')
+            num_line1_goto, CMD_LINE1 = self.CMDS_LINES[self.current_ptr]
+        else:
+            if CMD == 'LABEL':
+                #参数是label
+                self.LABEL_prt_dict[para[0]] = self.current_ptr
+                print('LABEL')
+            elif CMD == 'MOVE':
+                u_comm.send1(para[0])
+            elif CMD == 'WAIT':
+                print(f'等待 {para[0]} 秒')
+                time.sleep(para[0])
+                #用qt线程的定时，不用time
+                #self.sleep(int(para[0]))
+            else:
+                raise Exception(f"invalid IL {CMD}")
+        return num_line1_goto
+
 
 
 class MainWindow(QMainWindow, Ui_MainWindow):
@@ -148,6 +207,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.editor.setCaretLineVisible(True)
         self.editor.setCaretLineBackgroundColor(QColor(0, 255, 0));
         self.editor.setReadOnly(False) #可编辑
+        self.editor.setMouseTracking(True) #可改变光标位置
         #可运行
         self.action_play.setEnabled(True)
         self.action_step.setEnabled(True)
@@ -158,6 +218,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def set_Plan_runtime(self,  is_step=True):
         '''计划文件处于运行中模式'''
         self.editor.setCaretLineBackgroundColor(QColor(0, 0, 255));
+        self.editor.setMouseTracking(False) #不可改变光标位置
         self.editor.setReadOnly(True) #b不可编辑
         self.action_pause.setEnabled(True) #可暂停
 
@@ -183,9 +244,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         print(openfile_name)
         self.editor.setText("") 
         with open(openfile_name,  'r',  encoding='utf-8') as f:
-            for line in f.readlines():
+            lines_plan = f.readlines()
+
+        #加载到编辑器显示
+        for line in lines_plan:
                 #self.editor.setText("Hello\n")
                 self.editor.append(line)
+        
+        #加载到执行器
+        self.thread_worker.load(lines_plan)
+
         num_line = 0
         self.set_cursor_numline(num_line)
         self.set_Plan_editing()

@@ -118,7 +118,8 @@ def parse_BODY(lines_plan, object_dict):
 
 def compile_time(lines_plan_in:list):
     #过滤掉每行前后空格
-    lines_plan = [line for line in lines_plan_in if line.strip()]
+    lines_plan = [line.strip() for line in lines_plan_in]
+    print(lines_plan)
     #不过滤空行和注释行 因为行号仍然保留
     #lines_plan = [line for line in lines_plan_in if line[0] != '#']
     # DEFINE字段 

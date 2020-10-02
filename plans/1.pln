@@ -10,6 +10,8 @@ BEG DEFINE
     b7 万有引力
 END DEFINE
 
+
+
 BEG BODY
     BEG LOOP
         自然选择 前进 3
